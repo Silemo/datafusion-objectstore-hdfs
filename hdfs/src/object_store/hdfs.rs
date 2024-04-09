@@ -25,7 +25,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use bytes::Bytes;
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use futures::{stream::BoxStream, StreamExt, TryStreamExt};
 use hdfs::hdfs::{get_hdfs_by_full_path, FileStatus, HdfsErr, HdfsFile, HdfsFs};
 use hdfs::walkdir::HdfsWalkDir;
@@ -182,7 +182,7 @@ impl ObjectStore for HadoopFileSystem {
 
             file.close().map_err(to_error)?;
 
-            let object_metadata = convert_metadata(file_status, &hdfs_root);
+            let object_metadata = convert_metadata(file_status.clone(), &hdfs_root);
 
             let range = Range {
                 start: 0,
@@ -472,8 +472,8 @@ impl ObjectStore for HadoopFileSystem {
 
 /// Create Path without prefix
 pub fn get_path(full_path: &str, prefix: &str) -> Path {
-    let partial_path = &full_path[prefix.len()..];
-    Path::parse(partial_path).unwrap()
+    let partial_path = full_path.strip_prefix(prefix).unwrap();
+    Path::from(partial_path)
 }
 
 /// Convert HDFS file status to ObjectMeta
@@ -488,10 +488,7 @@ pub fn convert_metadata(file: FileStatus, prefix: &str) -> ObjectMeta {
 }
 
 fn last_modified(file: &FileStatus) -> DateTime<Utc> {
-    DateTime::<Utc>::from_naive_utc_and_offset(
-        NaiveDateTime::from_timestamp_opt(file.last_modified(), 0).unwrap(),
-        Utc,
-    )
+    DateTime::from_timestamp(file.last_modified(), 0).unwrap()
 }
 
 fn check_modified(

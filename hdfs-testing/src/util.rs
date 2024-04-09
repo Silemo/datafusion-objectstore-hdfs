@@ -19,7 +19,7 @@
 
 use datafusion::common::DataFusionError;
 use datafusion::error::Result;
-use hdfs::minidfs;
+use hdfs::hdfs::get_hdfs_by_full_path;
 use hdfs::util::HdfsUtil;
 use std::env;
 use std::future::Future;
@@ -46,28 +46,28 @@ fn setup_with_hdfs_data(filename: &str) -> (String, String) {
     let uuid = Uuid::new_v4().to_string();
     let tmp_dir = format!("/{}", uuid);
 
-    let dfs = minidfs::get_dfs();
-    let fs = dfs.get_hdfs().ok().unwrap();
+    let fs = get_hdfs_by_full_path("hdfs://rpc.namenode.service.consul:8020").ok().unwrap();
     assert!(fs.mkdir(&tmp_dir).is_ok());
 
     // Source
-    let testdata = parquet_test_data();
-    let src_path = format!("{}/{}", testdata, filename);
+    //let testdata = parquet_test_data();
+    //let src_path = format!("file:///{}/{}", testdata, filename);
+    let src_path = "/tmp/alltypes_plain.parquet";
 
     // Destination
     let dst_path = format!("{}/{}", tmp_dir, filename);
 
+    print!("----> src {}, dst {}\n", src_path, dst_path);
     // Copy to hdfs
-    assert!(HdfsUtil::copy_file_to_hdfs(dfs.clone(), &src_path, &dst_path).is_ok());
+    assert!(HdfsUtil::copy(&fs, &src_path, &fs, &dst_path).is_ok());
 
-    (tmp_dir, format!("{}{}", dfs.namenode_addr(), dst_path))
+    (tmp_dir, format!("{}{}", "hdfs://rpc.namenode.service.consul:8020/", dst_path))
 }
 
 /// Cleanup testing files in hdfs
-fn teardown(tmp_dir: &str) {
-    let dfs = minidfs::get_dfs();
-    let fs = dfs.get_hdfs().ok().unwrap();
-    assert!(fs.delete(tmp_dir, true).is_ok());
+fn teardown(_tmp_dir: &str) {
+//    let fs = get_hdfs_by_full_path("hdfs://rpc.namenode.service.consul:8020/").ok().unwrap();
+//    assert!(fs.delete(tmp_dir, true).is_ok());
 }
 
 /// Returns the parquet test data directory, which is by default

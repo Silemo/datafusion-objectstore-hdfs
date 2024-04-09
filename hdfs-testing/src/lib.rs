@@ -20,11 +20,12 @@ pub mod util;
 #[cfg(test)]
 mod tests {
     use crate::util::run_hdfs_test;
-
+    
     use std::future::Future;
     use std::pin::Pin;
     use std::sync::Arc;
-
+    
+    use datafusion::common::stats::Precision::Exact;
     use datafusion::assert_batches_eq;
     use datafusion::datasource::file_format::parquet::ParquetFormat;
     use datafusion::datasource::file_format::FileFormat;
@@ -44,8 +45,11 @@ mod tests {
     async fn test_read() -> Result<()> {
         run_hdfs_test("alltypes_plain.parquet".to_string(), |filename_hdfs| {
             Box::pin(async move {
+                print!("Start function");
                 let hdfs_object_store = HadoopFileSystem::new(&filename_hdfs).unwrap();
+                print!("{}", hdfs_object_store);
                 let location = get_path(&filename_hdfs, &hdfs_object_store.get_path_root());
+                print!("{}", location);
                 let ret = hdfs_object_store.get(&location).await?;
                 let data = ret.bytes().await?;
                 assert!(data.len() > 0);
@@ -61,7 +65,7 @@ mod tests {
         run_hdfs_test("alltypes_plain.parquet".to_string(), |filename_hdfs| {
             Box::pin(async move {
                 let session_context =
-                    SessionContext::with_config(SessionConfig::new().with_batch_size(2));
+                    SessionContext::new_with_config(SessionConfig::new().with_batch_size(2));
                 let projection = None;
                 let exec =
                     get_hdfs_exec(&session_context, filename_hdfs.as_str(), &projection, None)
@@ -78,10 +82,10 @@ mod tests {
                     .await;
 
                 assert_eq!(tt_batches, 4 /* 8/2 */);
-
+                
                 // test metadata
-                assert_eq!(exec.statistics().num_rows, Some(8));
-                assert_eq!(exec.statistics().total_byte_size, Some(671));
+                assert_eq!(exec.statistics()?.num_rows, Exact(8));
+                assert_eq!(exec.statistics()?.total_byte_size, Exact(671));
 
                 Ok(())
             })
@@ -111,7 +115,7 @@ mod tests {
                     "| 1  | 1                         |",
                     "+----+---------------------------+",
                 ];
-
+                
                 assert_batches_eq!(expected, &actual);
 
                 Ok(())
@@ -180,20 +184,23 @@ mod tests {
             + 'static,
     {
         run_hdfs_test("alltypes_plain.parquet".to_string(), |hdfs_file_uri| {
+            print!("====> hdfs_file_uri {}\n", hdfs_file_uri);
             Box::pin(async move {
                 let ctx = SessionContext::new();
+                print!("\n Print before register_hdfs_object. hdfs_file_path: {} \n", hdfs_file_uri);
                 register_hdfs_object_store(
                     &ctx,
                     Arc::new(HadoopFileSystem::new(&hdfs_file_uri).unwrap()),
                 );
                 let table_name = "alltypes_plain";
+                let hdfs_file_path = format!("{}{}", "hdfs://rpc.namenode.service.consul:8020/", get_path(&hdfs_file_uri, "hdfs://rpc.namenode.service.consul:8020/").as_ref());
                 println!(
-                    "Register table {} with parquet file {}",
-                    table_name, hdfs_file_uri
+                    "\n Register table {} with parquet file {}\n",
+                    table_name, hdfs_file_path
                 );
-                ctx.register_parquet(table_name, &hdfs_file_uri, ParquetReadOptions::default())
+                ctx.register_parquet(table_name, &hdfs_file_path, ParquetReadOptions::default())
                     .await?;
-
+                print!("\n After the register_parquet function \n");
                 test_query(ctx).await
             })
         })
@@ -202,6 +209,7 @@ mod tests {
 
     fn register_hdfs_object_store(ctx: &SessionContext, store: Arc<HadoopFileSystem>) {
         let url = Url::parse(&store.get_path_root()).unwrap();
+        print!("\n ---> Url: {}\n",url);
         ctx.runtime_env().register_object_store(&url, store);
     }
 }

@@ -26,15 +26,13 @@ license = "Apache-2.0"
 readme = "../README.md"
 keywords = [
     "hadoop",
-    "hdfs",
     "hdfs3",
     "store",
 ]
 repository = "https://github.com/datafusion-contrib/datafusion-objectstore-hdfs"
 
 [features]
-default = ["hdfs", "try_spawn_blocking"]
-hdfs = ["fs-hdfs"]
+default = ["hdfs3", "try_spawn_blocking"]
 hdfs3 = ["fs-hdfs3"]
 # Used for trying to spawn a blocking thread for implementing each object store interface when running in a tokio runtime
 try_spawn_blocking = []
@@ -43,8 +41,7 @@ try_spawn_blocking = []
 async-trait = "0.1.53"
 bytes = "1.0"
 chrono = { version = "0.4" }
-fs-hdfs = { version = "^0.1.12", optional = true }
-fs-hdfs3 = { version = "^0.1.12", optional = true }
+fs-hdfs3 = { path = "../../fs-hdfs", optional = true }
 futures = "0.3"
 object_store = "0.8.0"
 tokio = { version = "1.18", features = ["macros", "rt", "rt-multi-thread", "sync", "parking_lot"] }

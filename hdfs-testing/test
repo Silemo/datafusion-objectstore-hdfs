@@ -1,0 +1,10 @@
+export HADOOP_HOME=/srv/hops/hadoop
+export CLASSPATH=$CLASSPATH:`${HADOOP_HOME}/bin/hadoop classpath --glob`
+export PATH=$PATH:$HADOOP_HOME/bin
+export LD_LIBRARY_PATH="${HADOOP_HOME}/lib/native":/usr/lib/jvm/java-8-openjdk-amd64/jre/lib/amd64/server$LD_LIBRARY_PATH
+#export RUST_BACKTRACE=full
+export RUST_BACKTRACE=1
+export CARGO_PROFILE_TEST_BUILD_OVERRIDE_DEBUG=true
+#cargo test test_read 
+#cargo test parquet_query
+cargo test
